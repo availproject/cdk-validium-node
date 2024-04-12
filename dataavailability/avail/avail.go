@@ -20,8 +20,9 @@ import (
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v4"
 	"github.com/centrifuge/go-substrate-rpc-client/v4/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/crypto"
 
-	daTypes "github.com/0xPolygon/cdk-data-availability/types"
 	availTypes "github.com/0xPolygonHermez/zkevm-node/dataavailability/avail/types"
 )
 
@@ -76,11 +77,6 @@ func New(l1RPCURL string, dataCommitteeAddr common.Address) (*AvailBackend, erro
 		log.Fatalf("cannot get ws api:%w", err)
 	}
 
-	httpApi, err := gsrpc.NewSubstrateAPI(config.HttpApiUrl)
-	if err != nil {
-		log.Fatalf("cannot get http api:%w", err)
-	}
-
 	meta, err := api.RPC.State.GetMetadataLatest()
 	if err != nil {
 		log.Fatalf("cannot get metadata:%w", err)
@@ -112,7 +108,7 @@ func New(l1RPCURL string, dataCommitteeAddr common.Address) (*AvailBackend, erro
 		config:              config,
 		attestationContract: attestationContract,
 		api:                 api,
-		httpApi:             httpApi,
+		httpApi:             config.HttpApiUrl,
 		meta:                meta,
 		appId:               appId,
 		genesisHash:         genesisHash,
@@ -121,10 +117,18 @@ func New(l1RPCURL string, dataCommitteeAddr common.Address) (*AvailBackend, erro
 	}, nil
 }
 
+func (a *AvailBackend) Init() error {
+	return nil
+}
+
 func (a *AvailBackend) PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error) {
-	sequence := daTypes.Sequence{}
-	for _, seq := range batchesData {
-		sequence = append(sequence, seq)
+	byteArrayType, _ := abi.NewType("bytes[]", "", nil)
+	args := abi.Arguments{
+		{Type: byteArrayType, Name: "data"},
+	}
+	sequence, err := args.Pack(&batchesData)
+	if err != nil {
+		return nil, fmt.Errorf("cannot pack data:%w", err)
 	}
 
 	log.Infof("⚡️ Prepared data for Avail:%d bytes", len(sequence))
@@ -152,6 +156,8 @@ func (a *AvailBackend) PostSequence(ctx context.Context, batchesData [][]byte) (
 		AppID:              types.NewUCompactFromUInt(uint64(a.appId)),
 		TransactionVersion: a.rv.TransactionVersion,
 	}
+
+	fmt.Printf("options: %+v\n", options)
 
 	err = ext.Sign(a.keyringPair, options)
 	if err != nil {
@@ -191,10 +197,8 @@ out:
 		}
 	}
 
-	log.Infof("✅ Data submitted by sequencer:%d bytes against AppID %v sent with hash %#x", len(sequence), a.appId, blockHash)
-
 	var dataProof DataProof
-	batchHash := sequence.HashToSign()
+	batchHash := crypto.Keccak256Hash(sequence)
 
 	block, err := a.api.RPC.Chain.GetBlock(blockHash)
 	if err != nil {
@@ -225,8 +229,6 @@ out:
 
 	log.Infof("💿 received data proof:%+v", dataProof)
 	var batchDAData availTypes.BatchDAData
-	batchDAData.Proof = dataProof.Proof
-	batchDAData.Width = dataProof.NumberOfLeaves
 	batchDAData.LeafIndex = dataProof.LeafIndex
 
 	header, err := a.api.RPC.Chain.GetHeader(blockHash)
@@ -238,30 +240,20 @@ out:
 	a.GetData(uint64(header.Number), dataProof.LeafIndex)
 	log.Infof("🟢 prepared DA data:%+v", batchDAData)
 
+	// todo: use bridge API data
 	returnData, err := batchDAData.Encode()
 	if err != nil {
 		return nil, fmt.Errorf("cannot encode batch data:%w", err)
 	}
+
+	log.Infof("✅ Data submitted by sequencer:%d bytes against AppID %v sent with hash %#x", len(sequence), a.appId, blockHash)
+
 	return returnData, nil
 }
 
-func (a *AvailBackend) GetOffChainData(ctx context.Context, hash types.Hash) ([]byte, error) {
-	resp, err := http.Post(a.httpApi, "application/json", strings.NewReader(fmt.Sprintf("{\"id\":1,\"jsonrpc\":\"2.0\",\"method\":\"kate_queryDataProof\",\"params\":[1, \"%#x\"]}", hash)))
-	if err != nil {
-		return nil, fmt.Errorf("cannot post query request:%v", err)
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-
-	if err != nil {
-		return nil, fmt.Errorf("cannot read body:%v", err)
-	}
-
-	var dataProof DataProofRPCResponse
-	json.Unmarshal(data, &dataProof)
-
-	return []byte(dataProof.Result.Leaf), nil
+func (a *AvailBackend) GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
+	// TODO: implement
+	return nil, nil
 }
 
 func (a *AvailBackend) GetData(blockNumber uint64, index uint) ([]byte, error) {

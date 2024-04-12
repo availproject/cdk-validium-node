@@ -31,3 +31,8 @@ coverage.out
 db/db-packr.go
 db/packrd/
 packrd/
+sequencer.keystore
+aggregator.keystore
+test.avail.config.json
+test.node.config.toml
+test.genesis.config.json

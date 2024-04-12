@@ -10,23 +10,16 @@ import (
 
 type BatchDAData struct {
 	BlockNumber uint
-	Proof       []string `json:"proof"`
-	Width       uint     `json:"number_of_leaves"`
-	LeafIndex   uint     `json:"leaf_index"`
+	LeafIndex   uint
 }
 
 // write a function that encode batchDAData struct into ABI-encoded bytes
 func (b BatchDAData) Encode() ([]byte, error) {
-	abi, err := abi.JSON(strings.NewReader(`[{"type":"uint","name":"blockNumber"},{"type":"string[]","name":"proof"},{"type":"uint","name":"width"},{"type":"uint","name":"leafIndex"}]`))
-	if err != nil {
-		panic(err)
-	}
-	encoded, err := abi.Pack("BatchDAData", b.BlockNumber, b.Proof, b.Width, b.LeafIndex)
+	abi, err := abi.JSON(strings.NewReader(`[{"type":"uint256","name":"blockNumber"},{"type":"uint256","name":"leafIndex"}]`))
 	if err != nil {
 		return nil, err
 	}
-	
-	return encoded[4:], nil
+	return abi.Pack("BatchDAData", b.BlockNumber, b.LeafIndex)
 }
 
 func (b BatchDAData) IsEmpty() bool {
