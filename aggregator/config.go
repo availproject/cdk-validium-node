@@ -17,6 +17,9 @@ const (
 
 	// L1 settlement backend
 	L1 SettlementBackend = "l1"
+
+	// Nexus settlement backend for interop
+	Nexus SettlementBackend = "nexus"
 )
 
 // TokenAmountWithDecimals is a wrapper type that parses token amount with decimals to big int

@@ -173,6 +173,8 @@ services:
   zkevm-aggregator:
     container_name: zkevm-aggregator
     image: zkevm-node
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - 50081:50081
       - 9093:9091 # needed if metrics enabled
@@ -192,6 +194,7 @@ services:
   zkevm-aggregator-v1tov2:
     container_name: zkevm-aggregator-v1tov2
     image: zkevm-node
+      - "host.docker.internal:host-gateway"
     ports:
       - 50081:50081
       - 9093:9091 # needed if metrics enabled
@@ -522,6 +525,8 @@ services:
   zkevm-prover:
     container_name: zkevm-prover
     image: hermeznetwork/zkevm-prover:v5.0.6
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - 50061:50061 # MT
       - 50071:50071 # Executor
@@ -613,6 +618,8 @@ services:
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
     image: hermeznetwork/zkevm-prover:v5.0.6
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover

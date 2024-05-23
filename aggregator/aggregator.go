@@ -1,6 +1,7 @@
 package aggregator
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -72,6 +74,25 @@ type Aggregator struct {
 
 	AggLayerClient      client.ClientInterface
 	sequencerPrivateKey *ecdsa.PrivateKey
+}
+
+type NexusPublicInputs struct {
+	PrevStateRoot common.Hash `json:"prev_state_root"`
+	PostStateRoot common.Hash `json:"post_state_root"`
+	BlobHash      common.Hash `json:"blob_hash"`
+}
+
+type NexusCdkProof struct {
+	LastVerifiedBatch uint64 `json:"last_verified_batch"`
+	NewVerifiedBatch  uint64 `json:"new_verified_batch"`
+	NewStateRoot      []byte `json:"new_state_root"`
+	NewLocalExitRoot  []byte `json:"new_local_exit_root"`
+	Proof             []byte `json:"proof"`
+}
+
+type Proof struct {
+	Proof        NexusCdkProof     `json:"proof"`
+	PublicInputs NexusPublicInputs `json:"public_inputs"`
 }
 
 // New creates a new aggregator.
@@ -278,10 +299,13 @@ func (a *Aggregator) sendFinalProof() {
 			}
 
 			log.Infof("Final proof inputs: NewLocalExitRoot [%#x], NewStateRoot [%#x]", inputs.NewLocalExitRoot, inputs.NewStateRoot)
-
 			switch a.cfg.SettlementBackend {
 			case AggLayer:
 				if success := a.settleWithAggLayer(ctx, proof, inputs); !success {
+					continue
+				}
+			case Nexus:
+				if success := a.settleWithNexus(ctx, proof, inputs); !success {
 					continue
 				}
 			default:
@@ -294,6 +318,56 @@ func (a *Aggregator) sendFinalProof() {
 			a.endProofVerification()
 		}
 	}
+}
+
+func (a *Aggregator) settleWithNexus(
+	ctx context.Context,
+	proof *state.Proof,
+	inputs ethmanTypes.FinalProofInputs,
+) (success bool) {
+	proofStrNo0x := strings.TrimPrefix(inputs.FinalProof.Proof, "0x")
+	proofBytes := common.Hex2Bytes(proofStrNo0x)
+	nexusCdkProof := NexusCdkProof{
+		LastVerifiedBatch: proof.BatchNumber,
+		NewVerifiedBatch:  proof.BatchNumberFinal,
+		NewStateRoot:      inputs.NewStateRoot,
+		NewLocalExitRoot:  inputs.NewLocalExitRoot,
+		Proof:             proofBytes,
+	}
+
+	// untill we finalize on public inputs
+	nexusPublicInputs := NexusPublicInputs{
+		PrevStateRoot: common.MaxHash,
+		PostStateRoot: common.MaxHash,
+		BlobHash:      common.MaxHash,
+	}
+
+	nexusProof := Proof{
+		Proof:        nexusCdkProof,
+		PublicInputs: nexusPublicInputs,
+	}
+
+	nexus_submit_proof_url := "http://host.docker.internal:3031/proof"
+
+	jsonData, err := json.Marshal(nexusProof)
+	if err != nil {
+		return false
+	}
+
+	resp, err := http.Post(nexus_submit_proof_url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Errorf("Error received %v", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Errorf("received non-ok status code: %d", resp.StatusCode)
+	}
+
+	log.Infof("Proof posted to nexus successfully")
+
+	return true
 }
 
 func (a *Aggregator) settleDirect(
