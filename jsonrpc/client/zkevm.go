@@ -60,21 +60,27 @@ func (c *Client) BatchByNumber(ctx context.Context, number *big.Int) (*types.Bat
 
 // BatchesByNumbers returns batches from the current canonical chain by batch numbers. If the list is empty, the last
 // known batch is returned as a list.
-func (c *Client) BatchesByNumbers(_ context.Context, numbers []*big.Int) ([]*types.BatchData, error) {
-	var list []types.BatchNumber
+func (c *Client) BatchesByNumbers(ctx context.Context, numbers []*big.Int) ([]*types.BatchData, error) {
+	return c.batchesByNumbers(ctx, numbers, "zkevm_getBatchDataByNumbers")
+}
+
+// ForcedBatchesByNumbers returns forced batches data.
+func (c *Client) ForcedBatchesByNumbers(ctx context.Context, numbers []*big.Int) ([]*types.BatchData, error) {
+	return c.batchesByNumbers(ctx, numbers, "zkevm_getForcedBatchDataByNumbers")
+}
+
+// BatchesByNumbers returns batches from the current canonical chain by batch numbers. If the list is empty, the last
+// known batch is returned as a list.
+func (c *Client) batchesByNumbers(_ context.Context, numbers []*big.Int, method string) ([]*types.BatchData, error) {
+	batchNumbers := make([]types.BatchNumber, 0, len(numbers))
 	for _, n := range numbers {
-		list = append(list, types.BatchNumber(n.Int64()))
+		batchNumbers = append(batchNumbers, types.BatchNumber(n.Int64()))
 	}
-	if len(list) == 0 {
-		list = append(list, types.LatestBatchNumber)
-	}
-
-	var batchNumbers []string
-	for _, n := range list {
-		batchNumbers = append(batchNumbers, n.StringOrHex())
+	if len(batchNumbers) == 0 {
+		batchNumbers = append(batchNumbers, types.LatestBatchNumber)
 	}
 
-	response, err := JSONRPCCall(c.url, "zkevm_getBatchDataByNumbers", batchNumbers, true)
+	response, err := JSONRPCCall(c.url, method, &types.BatchFilter{Numbers: batchNumbers})
 	if err != nil {
 		return nil, err
 	}
