@@ -77,9 +77,9 @@ type Aggregator struct {
 }
 
 type NexusPublicInputs struct {
-	PrevStateRoot common.Hash `json:"prev_state_root"`
-	PostStateRoot common.Hash `json:"post_state_root"`
-	BlobHash      common.Hash `json:"blob_hash"`
+	PrevStateRoot []byte `json:"prev_state_root"`
+	PostStateRoot []byte `json:"post_state_root"`
+	BlobHash      []byte `json:"blob_hash"`
 }
 
 type NexusCdkProof struct {
@@ -337,9 +337,9 @@ func (a *Aggregator) settleWithNexus(
 
 	// untill we finalize on public inputs
 	nexusPublicInputs := NexusPublicInputs{
-		PrevStateRoot: common.MaxHash,
-		PostStateRoot: common.MaxHash,
-		BlobHash:      common.MaxHash,
+		PrevStateRoot: make([]byte, 32),
+		PostStateRoot: make([]byte, 32),
+		BlobHash:      make([]byte, 32),
 	}
 
 	nexusProof := Proof{
