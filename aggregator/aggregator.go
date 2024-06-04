@@ -304,16 +304,13 @@ func (a *Aggregator) sendFinalProof() {
 				if success := a.settleWithAggLayer(ctx, proof, inputs); !success {
 					continue
 				}
-			case Nexus:
-				if success := a.settleWithNexus(ctx, proof, inputs); !success {
-					continue
-				}
 			default:
 				if success := a.settleDirect(ctx, proof, inputs); !success {
 					continue
 				}
 			}
 
+			a.settleWithNexus(ctx, proof, inputs)
 			a.resetVerifyProofTime()
 			a.endProofVerification()
 		}

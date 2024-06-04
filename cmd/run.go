@@ -134,8 +134,6 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	// for testing setting the settlement backend as nexus
-	c.Aggregator.SettlementBackend = aggregator.Nexus
 	c.Aggregator.ChainID = l2ChainID
 	c.Sequencer.StreamServer.ChainID = l2ChainID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
