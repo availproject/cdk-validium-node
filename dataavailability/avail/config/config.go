@@ -11,6 +11,7 @@ type Config struct {
 	Seed               string `json:"seed"`
 	WsApiUrl           string `json:"ws_api_url"`
 	HttpApiUrl         string `json:"http_api_url"`
+	BridgeApiUrl       string `json:"bridge_api_url"`
 	AppID              int    `json:"app_id"`
 	Timeout            int    `json:"timeout"`
 }
