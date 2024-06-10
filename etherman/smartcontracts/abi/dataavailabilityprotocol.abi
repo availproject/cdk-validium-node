@@ -1,33 +1,93 @@
 [
     {
-        "inputs": [],
-        "name": "getProcotolName",
-        "outputs": [
-            {
-                "internalType": "string",
-                "name": "",
-                "type": "string"
-            }
-        ],
-        "stateMutability": "pure",
-        "type": "function"
+      "inputs": [],
+      "name": "getProcotolName",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "inputs": [
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "hash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes",
+          "name": "dataAvailabilityMessage",
+          "type": "bytes"
+        }
+      ],
+      "name": "verifyMessage",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "hash",
+          "type": "bytes32"
+        },
+        {
+          "components": [
             {
-                "internalType": "bytes32",
-                "name": "hash",
-                "type": "bytes32"
+              "internalType": "bytes32[]",
+              "name": "dataRootProof",
+              "type": "bytes32[]"
             },
             {
-                "internalType": "bytes",
-                "name": "dataAvailabilityMessage",
-                "type": "bytes"
+              "internalType": "bytes32[]",
+              "name": "leafProof",
+              "type": "bytes32[]"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "rangeHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "dataRootIndex",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "blobRoot",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "bridgeRoot",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "leaf",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "leafIndex",
+              "type": "uint256"
             }
-        ],
-        "name": "verifyMessage",
-        "outputs": [],
-        "stateMutability": "view",
-        "type": "function"
+          ],
+          "internalType": "struct IAvailBridge.MerkleProofInput",
+          "name": "dataAvailabilityMessage",
+          "type": "tuple"
+        }
+      ],
+      "name": "verifyMessage",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     }
-]
+  ]

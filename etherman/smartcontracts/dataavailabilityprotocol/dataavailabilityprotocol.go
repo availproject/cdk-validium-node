@@ -29,9 +29,21 @@ var (
 	_ = abi.ConvertType
 )
 
+// IAvailBridgeMerkleProofInput is an auto generated low-level Go binding around an user-defined struct.
+type IAvailBridgeMerkleProofInput struct {
+	DataRootProof [][32]byte
+	LeafProof     [][32]byte
+	RangeHash     [32]byte
+	DataRootIndex *big.Int
+	BlobRoot      [32]byte
+	BridgeRoot    [32]byte
+	Leaf          [32]byte
+	LeafIndex     *big.Int
+}
+
 // DataavailabilityprotocolMetaData contains all meta data concerning the Dataavailabilityprotocol contract.
 var DataavailabilityprotocolMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"getProcotolName\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"dataAvailabilityMessage\",\"type\":\"bytes\"}],\"name\":\"verifyMessage\",\"outputs\":[],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[],\"name\":\"getProcotolName\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"dataAvailabilityMessage\",\"type\":\"bytes\"}],\"name\":\"verifyMessage\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"},{\"components\":[{\"internalType\":\"bytes32[]\",\"name\":\"dataRootProof\",\"type\":\"bytes32[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"leafProof\",\"type\":\"bytes32[]\"},{\"internalType\":\"bytes32\",\"name\":\"rangeHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"dataRootIndex\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"blobRoot\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"bridgeRoot\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"leaf\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"leafIndex\",\"type\":\"uint256\"}],\"internalType\":\"structIAvailBridge.MerkleProofInput\",\"name\":\"dataAvailabilityMessage\",\"type\":\"tuple\"}],\"name\":\"verifyMessage\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // DataavailabilityprotocolABI is the input ABI used to generate the binding from.
@@ -182,7 +194,7 @@ func (_Dataavailabilityprotocol *DataavailabilityprotocolTransactorRaw) Transact
 
 // GetProcotolName is a free data retrieval call binding the contract method 0xe4f17120.
 //
-// Solidity: function getProcotolName() pure returns(string)
+// Solidity: function getProcotolName() view returns(string)
 func (_Dataavailabilityprotocol *DataavailabilityprotocolCaller) GetProcotolName(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _Dataavailabilityprotocol.contract.Call(opts, &out, "getProcotolName")
@@ -199,43 +211,56 @@ func (_Dataavailabilityprotocol *DataavailabilityprotocolCaller) GetProcotolName
 
 // GetProcotolName is a free data retrieval call binding the contract method 0xe4f17120.
 //
-// Solidity: function getProcotolName() pure returns(string)
+// Solidity: function getProcotolName() view returns(string)
 func (_Dataavailabilityprotocol *DataavailabilityprotocolSession) GetProcotolName() (string, error) {
 	return _Dataavailabilityprotocol.Contract.GetProcotolName(&_Dataavailabilityprotocol.CallOpts)
 }
 
 // GetProcotolName is a free data retrieval call binding the contract method 0xe4f17120.
 //
-// Solidity: function getProcotolName() pure returns(string)
+// Solidity: function getProcotolName() view returns(string)
 func (_Dataavailabilityprotocol *DataavailabilityprotocolCallerSession) GetProcotolName() (string, error) {
 	return _Dataavailabilityprotocol.Contract.GetProcotolName(&_Dataavailabilityprotocol.CallOpts)
 }
 
-// VerifyMessage is a free data retrieval call binding the contract method 0x3b51be4b.
+// VerifyMessage is a paid mutator transaction binding the contract method 0x3b51be4b.
 //
-// Solidity: function verifyMessage(bytes32 hash, bytes dataAvailabilityMessage) view returns()
-func (_Dataavailabilityprotocol *DataavailabilityprotocolCaller) VerifyMessage(opts *bind.CallOpts, hash [32]byte, dataAvailabilityMessage []byte) error {
-	var out []interface{}
-	err := _Dataavailabilityprotocol.contract.Call(opts, &out, "verifyMessage", hash, dataAvailabilityMessage)
-
-	if err != nil {
-		return err
-	}
-
-	return err
-
+// Solidity: function verifyMessage(bytes32 hash, bytes dataAvailabilityMessage) returns()
+func (_Dataavailabilityprotocol *DataavailabilityprotocolTransactor) VerifyMessage(opts *bind.TransactOpts, hash [32]byte, dataAvailabilityMessage []byte) (*types.Transaction, error) {
+	return _Dataavailabilityprotocol.contract.Transact(opts, "verifyMessage", hash, dataAvailabilityMessage)
 }
 
-// VerifyMessage is a free data retrieval call binding the contract method 0x3b51be4b.
+// VerifyMessage is a paid mutator transaction binding the contract method 0x3b51be4b.
 //
-// Solidity: function verifyMessage(bytes32 hash, bytes dataAvailabilityMessage) view returns()
-func (_Dataavailabilityprotocol *DataavailabilityprotocolSession) VerifyMessage(hash [32]byte, dataAvailabilityMessage []byte) error {
-	return _Dataavailabilityprotocol.Contract.VerifyMessage(&_Dataavailabilityprotocol.CallOpts, hash, dataAvailabilityMessage)
+// Solidity: function verifyMessage(bytes32 hash, bytes dataAvailabilityMessage) returns()
+func (_Dataavailabilityprotocol *DataavailabilityprotocolSession) VerifyMessage(hash [32]byte, dataAvailabilityMessage []byte) (*types.Transaction, error) {
+	return _Dataavailabilityprotocol.Contract.VerifyMessage(&_Dataavailabilityprotocol.TransactOpts, hash, dataAvailabilityMessage)
 }
 
-// VerifyMessage is a free data retrieval call binding the contract method 0x3b51be4b.
+// VerifyMessage is a paid mutator transaction binding the contract method 0x3b51be4b.
 //
-// Solidity: function verifyMessage(bytes32 hash, bytes dataAvailabilityMessage) view returns()
-func (_Dataavailabilityprotocol *DataavailabilityprotocolCallerSession) VerifyMessage(hash [32]byte, dataAvailabilityMessage []byte) error {
-	return _Dataavailabilityprotocol.Contract.VerifyMessage(&_Dataavailabilityprotocol.CallOpts, hash, dataAvailabilityMessage)
+// Solidity: function verifyMessage(bytes32 hash, bytes dataAvailabilityMessage) returns()
+func (_Dataavailabilityprotocol *DataavailabilityprotocolTransactorSession) VerifyMessage(hash [32]byte, dataAvailabilityMessage []byte) (*types.Transaction, error) {
+	return _Dataavailabilityprotocol.Contract.VerifyMessage(&_Dataavailabilityprotocol.TransactOpts, hash, dataAvailabilityMessage)
+}
+
+// VerifyMessage0 is a paid mutator transaction binding the contract method 0x63dde420.
+//
+// Solidity: function verifyMessage(bytes32 hash, (bytes32[],bytes32[],bytes32,uint256,bytes32,bytes32,bytes32,uint256) dataAvailabilityMessage) returns()
+func (_Dataavailabilityprotocol *DataavailabilityprotocolTransactor) VerifyMessage0(opts *bind.TransactOpts, hash [32]byte, dataAvailabilityMessage IAvailBridgeMerkleProofInput) (*types.Transaction, error) {
+	return _Dataavailabilityprotocol.contract.Transact(opts, "verifyMessage0", hash, dataAvailabilityMessage)
+}
+
+// VerifyMessage0 is a paid mutator transaction binding the contract method 0x63dde420.
+//
+// Solidity: function verifyMessage(bytes32 hash, (bytes32[],bytes32[],bytes32,uint256,bytes32,bytes32,bytes32,uint256) dataAvailabilityMessage) returns()
+func (_Dataavailabilityprotocol *DataavailabilityprotocolSession) VerifyMessage0(hash [32]byte, dataAvailabilityMessage IAvailBridgeMerkleProofInput) (*types.Transaction, error) {
+	return _Dataavailabilityprotocol.Contract.VerifyMessage0(&_Dataavailabilityprotocol.TransactOpts, hash, dataAvailabilityMessage)
+}
+
+// VerifyMessage0 is a paid mutator transaction binding the contract method 0x63dde420.
+//
+// Solidity: function verifyMessage(bytes32 hash, (bytes32[],bytes32[],bytes32,uint256,bytes32,bytes32,bytes32,uint256) dataAvailabilityMessage) returns()
+func (_Dataavailabilityprotocol *DataavailabilityprotocolTransactorSession) VerifyMessage0(hash [32]byte, dataAvailabilityMessage IAvailBridgeMerkleProofInput) (*types.Transaction, error) {
+	return _Dataavailabilityprotocol.Contract.VerifyMessage0(&_Dataavailabilityprotocol.TransactOpts, hash, dataAvailabilityMessage)
 }
