@@ -41,6 +41,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	ethgoAbi "github.com/umbracle/ethgo/abi"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -112,7 +113,8 @@ var (
 	// methodIDSequenceBatchesValidiumEtrog: MethodID for sequenceBatchesValidium in Etrog
 	methodIDSequenceBatchesValidiumEtrog = []byte{0x2d, 0x72, 0xc2, 0x48} // 0x2d72c248 sequenceBatchesValidium((bytes32,bytes32,uint64,bytes32)[],address,bytes)
 	// methodIDSequenceBatchesValidiumElderberry: MethodID for sequenceBatchesValidium in Elderberry
-	methodIDSequenceBatchesValidiumElderberry = []byte{0xdb, 0x5b, 0x0e, 0xd7} // 0xdb5b0ed7 sequenceBatchesValidium((bytes32,bytes32,uint64,bytes32)[],uint64,uint64,address,bytes)
+	methodIDSequenceBatchesValidiumElderberry      = []byte{0xdb, 0x5b, 0x0e, 0xd7} // 0xdb5b0ed7 sequenceBatchesValidium((bytes32,bytes32,uint64,bytes32)[],uint64,uint64,address,bytes)
+	methodIDSequenceBatchesValidiumElderberryAvail = []byte{0x65, 0x2b, 0x00, 0x18} // 0x652b0018 ((bytes32,bytes32,uint64,bytes32)[],uint64,uint64,address,IAvailBridge.MerkleProofInput)
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("not found")
@@ -965,7 +967,13 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 		batches = append(batches, batch)
 	}
 
-	tx, err := etherMan.ZkEVM.SequenceBatchesValidium(&opts, batches, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
+	typ := ethgoAbi.MustNewType("tuple(bytes32[] DataRootProof,bytes32[] LeafProof,bytes32 RangeHash,uint256 DataRootIndex,bytes32 BlobRoot,bytes32 BridgeRoot,bytes32 Leaf,uint256 LeafIndex)")
+	var ret polygonzkevm.IAvailBridgeMerkleProofInput
+	err := typ.DecodeStruct(dataAvailabilityMessage, &ret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode dataAvailabilityMessage")
+	}
+	tx, err := etherMan.ZkEVM.SequenceBatchesValidium(&opts, batches, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, ret)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", l2Coinbase)
@@ -1191,7 +1199,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 				return fmt.Errorf("error decoding the sequences (etrog): %v", err)
 			}
 		} else if bytes.Equal(methodId, methodIDSequenceBatchesElderberry) ||
-			bytes.Equal(methodId, methodIDSequenceBatchesValidiumElderberry) {
+			bytes.Equal(methodId, methodIDSequenceBatchesValidiumElderberry) || bytes.Equal(methodId, methodIDSequenceBatchesValidiumElderberryAvail) {
 			sequences, err = decodeSequencesElderberry(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot, etherMan.da, etherMan.state)
 			if err != nil {
 				return fmt.Errorf("error decoding the sequences (elderberry): %v", err)
@@ -1371,26 +1379,92 @@ func decodeSequencedBatches(smcAbi abi.ABI, txData []byte, forkID uint64, lastBa
 		return sequencedBatches, nil
 	case "sequenceBatchesValidium":
 		var (
-			sequencesValidium   []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
-			dataAvailabilityMsg []byte
+			sequencesValidium []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
+			// dataAvailabilityMsg polygonzkevm.IAvailBridgeMerkleProofInput
 		)
 		err := json.Unmarshal(bytedata, &sequencesValidium)
 		if err != nil {
 			return nil, err
 		}
-
+		var daMessage struct {
+			DataRootProof [][32]uint8 "json:\"dataRootProof\""
+			LeafProof     [][32]uint8 "json:\"leafProof\""
+			RangeHash     [32]uint8   "json:\"rangeHash\""
+			DataRootIndex *big.Int    "json:\"dataRootIndex\""
+			BlobRoot      [32]uint8   "json:\"blobRoot\""
+			BridgeRoot    [32]uint8   "json:\"bridgeRoot\""
+			Leaf          [32]uint8   "json:\"leaf\""
+			LeafIndex     *big.Int    "json:\"leafIndex\""
+		}
+		type DAMessageABI struct {
+			DataRootProof [][32]uint8 `abi:"dataRootProof"`
+			LeafProof     [][32]uint8 `abi:"leafProof"`
+			RangeHash     [32]uint8   `abi:"rangeHash"`
+			DataRootIndex *big.Int    `abi:"dataRootIndex"`
+			BlobRoot      [32]uint8   `abi:"blobRoot"`
+			BridgeRoot    [32]uint8   `abi:"bridgeRoot"`
+			Leaf          [32]uint8   `abi:"leaf"`
+			LeafIndex     *big.Int    `abi:"leafIndex"`
+		}
 		switch forkID {
 		case state.FORKID_ETROG:
 			coinbase = data[1].(common.Address)
-			dataAvailabilityMsg = data[2].([]byte)
+			daMessage = data[2].(struct {
+				DataRootProof [][32]uint8 "json:\"dataRootProof\""
+				LeafProof     [][32]uint8 "json:\"leafProof\""
+				RangeHash     [32]uint8   "json:\"rangeHash\""
+				DataRootIndex *big.Int    "json:\"dataRootIndex\""
+				BlobRoot      [32]uint8   "json:\"blobRoot\""
+				BridgeRoot    [32]uint8   "json:\"bridgeRoot\""
+				Leaf          [32]uint8   "json:\"leaf\""
+				LeafIndex     *big.Int    "json:\"leafIndex\""
+			})
+			// dataAvailabilityMsg = polygonzkevm.IAvailBridgeMerkleProofInput{
+			// 	DataRootProof: daMessage.DataRootProof,
+			// 	LeafProof:     daMessage.LeafProof,
+			// 	RangeHash:     daMessage.RangeHash,
+			// 	DataRootIndex: daMessage.DataRootIndex,
+			// 	BlobRoot:      daMessage.BlobRoot,
+			// 	BridgeRoot:    daMessage.BridgeRoot,
+			// 	Leaf:          daMessage.Leaf,
+			// 	LeafIndex:     daMessage.LeafIndex,
+			// }
 
 		case state.FORKID_ELDERBERRY:
 			maxSequenceTimestamp = data[1].(uint64)
 			initSequencedBatchNumber = data[2].(uint64)
 			coinbase = data[3].(common.Address)
-			dataAvailabilityMsg = data[4].([]byte)
+			daMessage = data[4].(struct {
+				DataRootProof [][32]uint8 "json:\"dataRootProof\""
+				LeafProof     [][32]uint8 "json:\"leafProof\""
+				RangeHash     [32]uint8   "json:\"rangeHash\""
+				DataRootIndex *big.Int    "json:\"dataRootIndex\""
+				BlobRoot      [32]uint8   "json:\"blobRoot\""
+				BridgeRoot    [32]uint8   "json:\"bridgeRoot\""
+				Leaf          [32]uint8   "json:\"leaf\""
+				LeafIndex     *big.Int    "json:\"leafIndex\""
+			})
+			// dataAvailabilityMsg = polygonzkevm.IAvailBridgeMerkleProofInput{
+			// 	DataRootProof: daMessage.DataRootProof,
+			// 	LeafProof:     daMessage.LeafProof,
+			// 	RangeHash:     daMessage.RangeHash,
+			// 	DataRootIndex: daMessage.DataRootIndex,
+			// 	BlobRoot:      daMessage.BlobRoot,
+			// 	BridgeRoot:    daMessage.BridgeRoot,
+			// 	Leaf:          daMessage.Leaf,
+			// 	LeafIndex:     daMessage.LeafIndex,
+			// }
 		}
-
+		daMessageABI := DAMessageABI{
+			DataRootProof: daMessage.DataRootProof,
+			LeafProof:     daMessage.LeafProof,
+			RangeHash:     daMessage.RangeHash,
+			DataRootIndex: daMessage.DataRootIndex,
+			BlobRoot:      daMessage.BlobRoot,
+			BridgeRoot:    daMessage.BridgeRoot,
+			Leaf:          daMessage.Leaf,
+			LeafIndex:     daMessage.LeafIndex,
+		}
 		// Pair the batch number, hash, and if it is forced. This will allow
 		// retrieval from different sources, and keep them in original order.
 		var batchInfos []batchInfo
@@ -1401,7 +1475,12 @@ func decodeSequencedBatches(smcAbi abi.ABI, txData []byte, forkID uint64, lastBa
 			batchInfos = append(batchInfos, batchInfo{num: bn, hash: h, isForced: forced})
 		}
 
-		batchData, err := retrieveBatchData(da, st, batchInfos, dataAvailabilityMsg)
+		typ := ethgoAbi.MustNewType("tuple(bytes32[] dataRootProof,bytes32[] leafProof,bytes32 rangeHash,uint256 dataRootIndex,bytes32 blobRoot,bytes32 bridgeRoot,bytes32 leaf,uint256 leafIndex)")
+		parsed, err := typ.Encode(daMessageABI)
+		if err != nil {
+			return nil, fmt.Errorf("cannot encode data availability message: %w", err)
+		}
+		batchData, err := retrieveBatchData(da, st, batchInfos, parsed)
 		if err != nil {
 			return nil, err
 		}
