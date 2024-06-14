@@ -310,7 +310,6 @@ func (a *Aggregator) sendFinalProof() {
 				}
 			}
 
-			a.settleWithNexus(ctx, proof, inputs)
 			a.resetVerifyProofTime()
 			a.endProofVerification()
 		}
@@ -533,8 +532,96 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 		finalProof.Public.NewStateRoot = finalBatch.StateRoot.Bytes()
 		finalProof.Public.NewLocalExitRoot = finalBatch.LocalExitRoot.Bytes()
 	}
+	log.Infof("Final proof is built in send final proof")
 
 	return finalProof, nil
+}
+
+// FinalProof for generated per sequence not for then whole batch
+// called only in batchProofGeneration
+func (a *Aggregator) _tryBuildFinalProofAndSettleWithNexus(ctx context.Context, prover proverInterface, _proof *state.Proof) (bool, error) {
+	proverName := prover.Name()
+	proverID := prover.ID()
+
+	log := log.WithFields(
+		"prover", proverName,
+		"proverId", proverID,
+		"proverAddr", prover.Addr(),
+	)
+	log.Debug("tryBuildFinalProof start")
+
+	var err error
+	// if !a.canVerifyProof() {
+	// 	log.Debug("Time to verify proof not reached or proof verification in progress")
+	// 	return false, nil
+	// }
+	log.Debug("Send final proof time reached")
+
+	// for !a.isSynced(ctx, nil) {
+	// 	log.Info("Waiting for synchronizer to sync...")
+	// 	time.Sleep(a.cfg.RetryTime.Duration)
+	// 	continue
+	// }
+
+	// skipping check since we would fail for nexus
+	// we do have a proof generating at the moment, check if it is
+	// eligible to be verified
+	// eligible, err := a.validateEligibleFinalProof(ctx, proof, lastVerifiedBatchNum)
+	// if err != nil {
+	// 	return false, fmt.Errorf("failed to validate eligible final proof, %w", err)
+	// }
+	// if !eligible {
+	// 	return false, nil
+	// }
+
+	log = log.WithFields(
+		"proofId", *_proof.ProofID,
+		"batches", fmt.Sprintf("%d-%d", _proof.BatchNumber, _proof.BatchNumberFinal),
+	)
+
+	// at this point we have an eligible proof, build the final one using it
+	finalProof, err := a.buildFinalProof(ctx, prover, _proof)
+	log.Infof("Final proof is built")
+	if err != nil {
+		err = fmt.Errorf("failed to build final proof, %w", err)
+		log.Error(FirstToUpper(err.Error()))
+		return false, err
+	}
+
+	msg := finalProofMsg{
+		proverName:     proverName,
+		proverID:       proverID,
+		recursiveProof: _proof,
+		finalProof:     finalProof,
+	}
+
+	proof := msg.recursiveProof
+
+	log.WithFields("proofId", proof.ProofID, "batches", fmt.Sprintf("%d-%d", proof.BatchNumber, proof.BatchNumberFinal))
+	
+	// disabling verification since it won't go through
+	// log.Info("Verifying final proof with ethereum smart contract")
+
+	// a.startProofVerification()
+
+	finalBatch, err := a.State.GetBatchByNumber(ctx, proof.BatchNumberFinal, nil)
+	if err != nil {
+		log.Errorf("Failed to retrieve batch with number [%d]: %v", proof.BatchNumberFinal, err)
+		a.endProofVerification()
+	}
+
+	inputs := ethmanTypes.FinalProofInputs{
+		FinalProof:       msg.finalProof,
+		NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
+		NewStateRoot:     finalBatch.StateRoot.Bytes(),
+	}
+
+	log.Infof("Final proof inputs: NewLocalExitRoot [%#x], NewStateRoot [%#x]", inputs.NewLocalExitRoot, inputs.NewStateRoot)
+	a.settleWithNexus(ctx, proof, inputs)
+
+	log.Debug("tryBuildFinalProof end")
+	log.Infof("sent proof with nexus")
+	return true, nil
 }
 
 // tryBuildFinalProof checks if the provided proof is eligible to be used to
@@ -1081,10 +1168,16 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 
 	proof.Proof = resGetProof
 
+	finalProofBuilt, finalProofErr := a._tryBuildFinalProofAndSettleWithNexus(ctx, prover, proof)
+	if finalProofErr != nil {
+		// just log the error and continue to handle the generated proof
+		log.Errorf("Error trying to build final proof and send it to Nexus: %v", finalProofErr)
+	}
+
 	// NOTE(pg): the defer func is useless from now on, use a different variable
 	// name for errors (or shadow err in inner scopes) to not trigger it.
 
-	finalProofBuilt, finalProofErr := a.tryBuildFinalProof(ctx, prover, proof)
+	finalProofBuilt, finalProofErr = a.tryBuildFinalProof(ctx, prover, proof)
 	if finalProofErr != nil {
 		// just log the error and continue to handle the generated proof
 		log.Errorf("Error trying to build final proof: %v", finalProofErr)
